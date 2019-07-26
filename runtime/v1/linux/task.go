@@ -41,23 +41,33 @@ import (
 // Task on a linux based system
 type Task struct {
 	mu        sync.Mutex
-	id        string
-	pid       int
-	shim      *client.Client
+	id        string         //任务id
+	pid       int            //运行主进程pid
+	shim      *client.Client //用于和docker shim通信的客户端
 	namespace string
-	cg        cgroups.Cgroup
+	cg        cgroups.Cgroup //这个有什么用？
 	events    *exchange.Exchange
-	tasks     *runtime.TaskList
-	bundle    *bundle
+	tasks     *runtime.TaskList //运行时容器列表 ？？？
+	bundle    *bundle           // 容器捆绑包？
 }
 
+// id - task id
+// namespace -  task namespace, 如moby
+// pid - task运行时的pid
+// shim - 连接shim的客户端
+//
 func newTask(id, namespace string, pid int, shim *client.Client, events *exchange.Exchange, list *runtime.TaskList, bundle *bundle) (*Task, error) {
 	var (
 		err error
 		cg  cgroups.Cgroup
 	)
+
+	//  任务可能正在运行，重新加载，在 任务的state目录仍保留上次运行的init.pid文件，记录上次运行的pid
+	// 问题： 仍然运行的进程不处理？？ 问题是重启了containerd, containerd杀死了所有任务
+	// 什么情况下，containerd重启，任务仍然存在？
 	if pid > 0 {
-		cg, err = cgroups.Load(cgroups.V1, cgroups.PidPath(pid))
+		// 加载之前的cgroup.
+		cg, err = cgroups.Load(cgroups.V1, cgroups.PidPath(pid)) // /proc/<pid>/cgroup
 		if err != nil && err != cgroups.ErrCgroupDeleted {
 			return nil, err
 		}
@@ -67,7 +77,7 @@ func newTask(id, namespace string, pid int, shim *client.Client, events *exchang
 		pid:       pid,
 		shim:      shim,
 		namespace: namespace,
-		cg:        cg,
+		cg:        cg, // 继承原先任务的cgroup?
 		events:    events,
 		tasks:     list,
 		bundle:    bundle,
