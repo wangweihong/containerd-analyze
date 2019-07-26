@@ -44,12 +44,12 @@ func handleSignals(ctx context.Context, signals chan os.Signal, serverC chan *se
 		var server *server.Server
 		for {
 			select {
-			case s := <-serverC:
+			case s := <-serverC: //contaienrd服务器启动成功后，将会传递过来
 				server = s
 			case s := <-signals:
 				log.G(ctx).WithField("signal", s).Debug("received signal")
 				switch s {
-				case unix.SIGUSR1:
+				case unix.SIGUSR1: //接收到SIGUSR信号时，打印goroutine的运行栈
 					dumpStacks()
 				case unix.SIGPIPE:
 					continue
