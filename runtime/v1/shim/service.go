@@ -62,8 +62,8 @@ var (
 
 // Config contains shim specific configuration
 type Config struct {
-	Path          string
-	Namespace     string
+	Path          string // ？
+	Namespace     string //容器命名空间？
 	WorkDir       string
 	Criu          string
 	RuntimeRoot   string
@@ -126,7 +126,7 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 
 	config := &proc.CreateConfig{
 		ID:               r.ID,
-		Bundle:           r.Bundle,
+		Bundle:           r.Bundle, //捆绑的
 		Runtime:          r.Runtime,
 		Rootfs:           mounts,
 		Terminal:         r.Terminal,
@@ -137,6 +137,8 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 		ParentCheckpoint: r.ParentCheckpoint,
 		Options:          r.Options,
 	}
+
+	//
 	rootfs := filepath.Join(r.Bundle, "rootfs")
 	defer func() {
 		if err != nil {
@@ -159,6 +161,7 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// 这里包括初始化一个runc对象(未运行)
 	process, err := newInit(
 		ctx,
 		s.config.Path,
@@ -640,8 +643,9 @@ func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu st
 		}
 		options = *v.(*runctypes.CreateOptions)
 	}
-
+	//容器的rootfs
 	rootfs := filepath.Join(path, "rootfs")
+	// 这里是初始Runc对象, 包括runtime 二进制，根目录，criu，命名空间等
 	runtime := proc.NewRunc(runtimeRoot, path, namespace, r.Runtime, criu, systemdCgroup)
 	p := proc.New(r.ID, runtime, rproc.Stdio{
 		Stdin:    r.Stdin,

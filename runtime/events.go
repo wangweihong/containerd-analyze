@@ -17,6 +17,7 @@
 package runtime
 
 const (
+	// 推送事件给containerd时用到的主题
 	// TaskCreateEventTopic for task create
 	TaskCreateEventTopic = "/tasks/create"
 	// TaskStartEventTopic for task start
@@ -28,15 +29,15 @@ const (
 	// TaskDeleteEventTopic for task delete
 	TaskDeleteEventTopic = "/tasks/delete"
 	// TaskExecAddedEventTopic for task exec create
-	TaskExecAddedEventTopic = "/tasks/exec-added"
+	TaskExecAddedEventTopic = "/tasks/exec-added" //??
 	// TaskExecStartedEventTopic for task exec start
-	TaskExecStartedEventTopic = "/tasks/exec-started"
+	TaskExecStartedEventTopic = "/tasks/exec-started" // ??
 	// TaskPausedEventTopic for task pause
 	TaskPausedEventTopic = "/tasks/paused"
 	// TaskResumedEventTopic for task resume
 	TaskResumedEventTopic = "/tasks/resumed"
 	// TaskCheckpointedEventTopic for task checkpoint
-	TaskCheckpointedEventTopic = "/tasks/checkpointed"
+	TaskCheckpointedEventTopic = "/tasks/checkpointed" // ??
 	// TaskUnknownTopic for unknown task events
 	TaskUnknownTopic = "/tasks/?"
 )

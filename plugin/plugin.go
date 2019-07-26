@@ -50,6 +50,7 @@ type Type string
 
 func (t Type) String() string { return string(t) }
 
+// containerd默认的插件
 const (
 	// InternalPlugin implements an internal plugin to containerd
 	InternalPlugin Type = "io.containerd.internal.v1"
@@ -58,9 +59,9 @@ const (
 	// RuntimePluginV2 implements a runtime v2
 	RuntimePluginV2 Type = "io.containerd.runtime.v2"
 	// ServicePlugin implements a internal service
-	ServicePlugin Type = "io.containerd.service.v1"
+	ServicePlugin Type = "io.containerd.service.v1" //为什么 service/contaienrs中同时注册了 ServicePlugin以及GRPC Plugin?
 	// GRPCPlugin implements a grpc service
-	GRPCPlugin Type = "io.containerd.grpc.v1"
+	GRPCPlugin Type = "io.containerd.grpc.v1" //对外的服务？
 	// SnapshotPlugin implements a snapshotter
 	SnapshotPlugin Type = "io.containerd.snapshotter.v1"
 	// TaskMonitorPlugin implements a task monitor
@@ -78,18 +79,18 @@ const (
 // Registration contains information for registering a plugin
 type Registration struct {
 	// Type of the plugin
-	Type Type
+	Type Type //插件类型如：io.containerd.runtime.v1(插件类型为运行时)
 	// ID of the plugin
-	ID string
+	ID string //插件ID  io.containerd.runtime.v1这类型插件可能有多个不同的插件， 如linux的，如 windows. 这些就是特定插件的ID
 	// Config specific to the plugin
-	Config interface{}
+	Config interface{} // 插件自定义的配置, 每个插件都有各自不同的配置。 containerd配置文件可以替换插件的配置
 	// Requires is a list of plugins that the registered plugin requires to be available
 	Requires []Type
 
 	// InitFn is called when initializing a plugin. The registration and
 	// context are passed in. The init function may modify the registration to
 	// add exports, capabilities and platform support declarations.
-	InitFn func(*InitContext) (interface{}, error)
+	InitFn func(*InitContext) (interface{}, error) //各个插件自定义的初始化函数
 }
 
 // Init the registered plugin
@@ -105,15 +106,18 @@ func (r *Registration) Init(ic *InitContext) *Plugin {
 }
 
 // URI returns the full plugin URI
+//  v1/runtime插件 类型io.containerd.runtime.v1 ID为linux
 func (r *Registration) URI() string {
 	return fmt.Sprintf("%s.%s", r.Type, r.ID)
 }
 
 // Service allows GRPC services to be registered with the underlying server
+//就是将这些插件实现的服务添加到grpc server中
 type Service interface {
 	Register(*grpc.Server) error
 }
 
+//记录所有插件的注册？
 var register = struct {
 	sync.RWMutex
 	r []*Registration
@@ -137,6 +141,8 @@ func Load(path string) (err error) {
 func Register(r *Registration) {
 	register.Lock()
 	defer register.Unlock()
+
+	//注册必须有ID和类型
 	if r.Type == "" {
 		panic(ErrNoType)
 	}
@@ -145,6 +151,7 @@ func Register(r *Registration) {
 	}
 
 	var last bool
+	// 依赖的插件？
 	for _, requires := range r.Requires {
 		if requires == "*" {
 			last = true
@@ -157,7 +164,7 @@ func Register(r *Registration) {
 	register.r = append(register.r, r)
 }
 
-// Graph returns an ordered list of registered plugins for initialization.
+// Graph0 returns an ordered list of registered plugins for initialization.
 // Plugins in disableList specified by id will be disabled.
 func Graph(disableList []string) (ordered []*Registration) {
 	register.RLock()

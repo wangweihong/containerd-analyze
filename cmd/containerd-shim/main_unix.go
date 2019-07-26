@@ -75,8 +75,8 @@ func init() {
 }
 
 func main() {
-	debug.SetGCPercent(40)
-	go func() {
+	debug.SetGCPercent(40) //为什么设置GC回收
+	go func() {            //每隔30秒强制进行内存回收
 		for range time.Tick(30 * time.Second) {
 			debug.FreeOSMemory()
 		}
@@ -98,6 +98,7 @@ func main() {
 	}
 }
 
+// 启动一个server 转发contaienrd请求？？
 func executeShim() error {
 	// start handling signals as soon as possible so that things are properly reaped
 	// or if runtime exits before we hit the handler
@@ -108,7 +109,7 @@ func executeShim() error {
 	dump := make(chan os.Signal, 32)
 	signal.Notify(dump, syscall.SIGUSR1)
 
-	path, err := os.Getwd()
+	path, err := os.Getwd() // 工作目录，应该是从containerd继承而来。 但具体是什么
 	if err != nil {
 		return err
 	}
@@ -116,6 +117,7 @@ func executeShim() error {
 	if err != nil {
 		return errors.Wrap(err, "failed creating server")
 	}
+	//这个服务包括和runc的交互
 	sv, err := shim.NewService(
 		shim.Config{
 			Path:          path,
@@ -134,6 +136,7 @@ func executeShim() error {
 	shimapi.RegisterShimService(server, sv)
 
 	socket := socketFlag
+	// 起一个server, 异步
 	if err := serve(context.Background(), server, socket); err != nil {
 		return err
 	}
@@ -157,7 +160,12 @@ func serve(ctx context.Context, server *ttrpc.Server, path string) error {
 		l   net.Listener
 		err error
 	)
+
+	//没看懂这里监听到底时哪个unix socket
 	if path == "" {
+		// 如何理解这一块？
+		// 利用一个已存在的fd作为met socket?
+		// 利用containerd打开的文件作为socket?
 		l, err = net.FileListener(os.NewFile(3, "socket"))
 		path = "[inherited from parent]"
 	} else {
@@ -245,6 +253,7 @@ func (l *remoteEventsPublisher) Publish(ctx context.Context, topic string, event
 	if err != nil {
 		return err
 	}
+	// containerd --address <address> publish --topic <topic> --namespace <namespace>
 	cmd := exec.CommandContext(ctx, containerdBinaryFlag, "--address", l.address, "publish", "--topic", topic, "--namespace", ns)
 	cmd.Stdin = bytes.NewReader(data)
 	c, err := shim.Default.Start(cmd)

@@ -55,7 +55,8 @@ type Task struct {
 // namespace -  task namespace, 如moby
 // pid - task运行时的pid
 // shim - 连接shim的客户端
-//
+// list - 任务列表
+// bundle
 func newTask(id, namespace string, pid int, shim *client.Client, events *exchange.Exchange, list *runtime.TaskList, bundle *bundle) (*Task, error) {
 	var (
 		err error

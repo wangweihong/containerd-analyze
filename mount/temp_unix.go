@@ -40,7 +40,7 @@ func SetTempMountLocation(root string) error {
 
 // CleanupTempMounts all temp mounts and remove the directories
 func CleanupTempMounts(flags int) (warnings []error, err error) {
-	mounts, err := Self()
+	mounts, err := Self() //获取containerd所在命名空间的挂载点信息
 	if err != nil {
 		return nil, err
 	}

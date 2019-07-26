@@ -76,7 +76,8 @@ func init() {
 // New returns a new containerd client that is connected to the containerd
 // instance provided by address
 func New(address string, opts ...ClientOpt) (*Client, error) {
-	var copts clientOpts
+	var copts clientOpts //1.可以设置超时, 运行时, 运行平台, 命名空间,grpc选项; 2.  pullUnpack/pullSnapshotter/pullLabel
+	//3. 各种服务
 	for _, o := range opts {
 		if err := o(&copts); err != nil {
 			return nil, err
@@ -95,6 +96,9 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 	if copts.services != nil {
 		c.services = *copts.services
 	}
+
+	//要么指定一个服务端口
+	//要么传参惨containerd.WithService
 	if address != "" {
 		gopts := []grpc.DialOption{
 			grpc.WithBlock(),
@@ -162,9 +166,9 @@ func NewWithConn(conn *grpc.ClientConn, opts ...ClientOpt) (*Client, error) {
 type Client struct {
 	services
 	connMu    sync.Mutex
-	conn      *grpc.ClientConn
+	conn      *grpc.ClientConn //利用connecor生成的conn
 	runtime   string
-	connector func() (*grpc.ClientConn, error)
+	connector func() (*grpc.ClientConn, error) //可以利用connector来生成conn.
 }
 
 // Reconnect re-establishes the GRPC connection to the containerd daemon

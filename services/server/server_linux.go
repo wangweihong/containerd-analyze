@@ -31,10 +31,12 @@ import (
 func apply(ctx context.Context, config *srvconfig.Config) error {
 	if config.OOMScore != 0 {
 		log.G(ctx).Debugf("changing OOM score to %d", config.OOMScore)
+		//设置proc/%s/oom_score
 		if err := sys.SetOOMScore(os.Getpid(), config.OOMScore); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed to change OOM score to %d", config.OOMScore)
 		}
 	}
+	//添加当前进程到指定的cgroup
 	if config.Cgroup.Path != "" {
 		cg, err := cgroups.Load(cgroups.V1, cgroups.StaticPath(config.Cgroup.Path))
 		if err != nil {

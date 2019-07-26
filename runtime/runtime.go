@@ -41,7 +41,7 @@ type CreateOpts struct {
 	// IO for the container's main process
 	IO IO
 	// Checkpoint digest to restore container state
-	Checkpoint string
+	Checkpoint string //  check point? 可以传哪些值
 	// RuntimeOptions for the runtime
 	RuntimeOptions *types.Any
 	// TaskOptions received for the task
@@ -59,10 +59,12 @@ type Exit struct {
 
 // PlatformRuntime is responsible for the creation and management of
 // tasks and processes for a platform.
+// 实现 runtime/v1/linux/runtime.go, runtime/v2/manager.go
 type PlatformRuntime interface {
 	// ID of the runtime
 	ID() string
 	// Create creates a task with the provided id and options.
+	//  创建运行容器
 	Create(ctx context.Context, id string, opts CreateOpts) (Task, error)
 	// Get returns a task.
 	Get(context.Context, string) (Task, error)

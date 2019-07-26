@@ -102,22 +102,26 @@ func App() *cli.App {
 			signals = make(chan os.Signal, 2048)
 			serverC = make(chan *server.Server, 1)
 			ctx     = gocontext.Background()
-			config  = defaultConfig()
+			config  = defaultConfig() //默认配置
 		)
 
+		//启动一个线程来监听系统信号
 		done := handleSignals(ctx, signals, serverC)
 		// start the signal handler as soon as we can to make sure that
 		// we don't miss any signals during boot
-		signal.Notify(signals, handledSignals...)
+		signal.Notify(signals, handledSignals...) //
 
+		//根据参数，加载配置文件。 注意这里并没有覆盖默认配置。
 		if err := srvconfig.LoadConfig(context.GlobalString("config"), config); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 		// apply flags to the config
+		//根据标志覆盖配置
 		if err := applyFlags(context, config); err != nil {
 			return err
 		}
 		// cleanup temp mounts
+		//在根目录下设置临时挂载
 		if err := mount.SetTempMountLocation(filepath.Join(config.Root, "tmpmounts")); err != nil {
 			return errors.Wrap(err, "creating temp mount location")
 		}
@@ -138,6 +142,7 @@ func App() *cli.App {
 			"revision": version.Revision,
 		}).Info("starting containerd")
 
+		//根据配置启动一个contaienrd服务器
 		server, err := server.New(ctx, config)
 		if err != nil {
 			return err
@@ -154,8 +159,10 @@ func App() *cli.App {
 					return errors.Wrapf(err, "failed to get listener for debug endpoint")
 				}
 			}
-			serve(ctx, l, server.ServeDebug)
+			serve(ctx, l, server.ServeDebug) //启动一个调试服务器
 		}
+
+		//如果指定了，将会启动一个metrics服务器
 		if config.Metrics.Address != "" {
 			l, err := net.Listen("tcp", config.Metrics.Address)
 			if err != nil {
@@ -164,6 +171,7 @@ func App() *cli.App {
 			serve(ctx, l, server.ServeMetrics)
 		}
 
+		//创建unix socket文件，设置socket的uid和gid
 		l, err := sys.GetLocalListener(address, config.GRPC.UID, config.GRPC.GID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get listener for main endpoint")
@@ -211,6 +219,7 @@ func applyFlags(context *cli.Context, config *srvconfig.Config) error {
 			d:    &config.GRPC.Address,
 		},
 	} {
+		//containerd的标志覆盖默认的
 		if s := context.GlobalString(v.name); s != "" {
 			*v.d = s
 		}

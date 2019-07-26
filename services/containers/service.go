@@ -30,17 +30,17 @@ import (
 
 func init() {
 	plugin.Register(&plugin.Registration{
-		Type: plugin.GRPCPlugin,
+		Type: plugin.GRPCPlugin, //io.containerd.grpc.v1类型的插件
 		ID:   "containers",
 		Requires: []plugin.Type{
 			plugin.ServicePlugin,
 		},
 		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
-			plugins, err := ic.GetByType(plugin.ServicePlugin)
+			plugins, err := ic.GetByType(plugin.ServicePlugin) //io.containerd.service.v1
 			if err != nil {
 				return nil, err
 			}
-			p, ok := plugins[services.ContainersService]
+			p, ok := plugins[services.ContainersService] // containers-service
 			if !ok {
 				return nil, errors.New("containers service not found")
 			}
@@ -54,11 +54,14 @@ func init() {
 }
 
 type service struct {
-	local api.ContainersClient
+	local api.ContainersClient //谁的客户端？
+	// 这个grpc服务的服务端是谁实现的？
 }
 
 var _ api.ContainersServer = &service{}
 
+// 将容器服务注册到grpc server
+//
 func (s *service) Register(server *grpc.Server) error {
 	api.RegisterContainersServer(server, s)
 	return nil

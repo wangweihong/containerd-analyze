@@ -51,6 +51,7 @@ type Process interface {
 }
 
 // Task is the runtime object for an executing container
+// 运行时容器的抽象
 type Task interface {
 	Process
 

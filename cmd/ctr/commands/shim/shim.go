@@ -231,6 +231,8 @@ func getTaskService(context *cli.Context) (task.TaskService, error) {
 		return nil, errors.New("socket path must be specified")
 	}
 
+	//  这个socket？这是个abstract unix domain socket
+	// 并不存在socket文件，通过netstat -ntlap可以看到socket以'@'开头。
 	conn, err := net.Dial("unix", "\x00"+bindSocket)
 	if err != nil {
 		return nil, err

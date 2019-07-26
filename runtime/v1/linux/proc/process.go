@@ -25,6 +25,7 @@ import (
 // RuncRoot is the path to the root runc state directory
 const RuncRoot = "/run/containerd/runc"
 
+// 根据对象返回状态信息
 func stateName(v interface{}) string {
 	switch v.(type) {
 	case *runningState, *execRunningState:

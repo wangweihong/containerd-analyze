@@ -18,19 +18,19 @@ package services
 
 const (
 	// ContentService is id of content service.
-	ContentService = "content-service"
+	ContentService = "content-service" //具体指的是什么
 	// SnapshotsService is id of snapshots service.
 	SnapshotsService = "snapshots-service"
 	// ImagesService is id of images service.
-	ImagesService = "images-service"
+	ImagesService = "images-service" // 容器镜像的镜像？
 	// ContainersService is id of containers service.
-	ContainersService = "containers-service"
+	ContainersService = "containers-service" //非运行状态的容器服务
 	// TasksService is id of tasks service.
-	TasksService = "tasks-service"
+	TasksService = "tasks-service" //运行状态的服务
 	// NamespacesService is id of namespaces service.
 	NamespacesService = "namespaces-service"
 	// LeasesService is id of leases service.
-	LeasesService = "leases-service"
+	LeasesService = "leases-service" //租约服务？
 	// DiffService is id of diff service.
-	DiffService = "diff-service"
+	DiffService = "diff-service" //差异服务？
 )

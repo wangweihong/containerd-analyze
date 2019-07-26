@@ -28,6 +28,7 @@ import (
 )
 
 // NewLocal returns a shim client implementation for issue commands to a shim
+// 实现shim server service?
 func NewLocal(s *Service) shimapi.ShimService {
 	return &local{
 		s: s,

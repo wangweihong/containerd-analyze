@@ -41,7 +41,7 @@ func handleSignals(ctx context.Context, signals chan os.Signal, serverC chan *se
 		var server *server.Server
 		for {
 			select {
-			case s := <-serverC:
+			case s := <-serverC: //server初始化？
 				server = s
 			case s := <-signals:
 				log.G(ctx).WithField("signal", s).Debug("received signal")

@@ -25,20 +25,20 @@ import (
 // Config provides containerd configuration data for the server
 type Config struct {
 	// Root is the path to a directory where containerd will store persistent data
-	Root string `toml:"root"`
+	Root string `toml:"root"` // 默认为 /var/lib/containerd
 	// State is the path to a directory where containerd will store transient data
-	State string `toml:"state"`
+	State string `toml:"state"` // 默认为 /run/containerd
 	// GRPC configuration settings
 	GRPC GRPCConfig `toml:"grpc"`
 	// Debug and profiling settings
-	Debug Debug `toml:"debug"`
+	Debug Debug `toml:"debug"` //包含调试服务器的配置
 	// Metrics and monitoring settings
-	Metrics MetricsConfig `toml:"metrics"`
+	Metrics MetricsConfig `toml:"metrics"` //包含指标服务器的配置
 	// DisabledPlugins are IDs of plugins to disable. Disabled plugins won't be
 	// initialized and started.
 	DisabledPlugins []string `toml:"disabled_plugins"`
 	// Plugins provides plugin specific configuration for the initialization of a plugin
-	Plugins map[string]toml.Primitive `toml:"plugins"`
+	Plugins map[string]toml.Primitive `toml:"plugins"` // 插件配置，每个插件都有默认的配置，这里会更改配置的特定项
 	// OOMScore adjust the containerd's oom score
 	OOMScore int `toml:"oom_score"`
 	// Cgroup specifies cgroup information for the containerd daemon process
@@ -46,16 +46,16 @@ type Config struct {
 	// ProxyPlugins configures plugins which are communicated to over GRPC
 	ProxyPlugins map[string]ProxyPlugin `toml:"proxy_plugins"`
 
-	md toml.MetaData
+	md toml.MetaData //通过加载toml配置文件的得到。
 }
 
 // GRPCConfig provides GRPC configuration for the socket
 type GRPCConfig struct {
-	Address        string `toml:"address"`
+	Address        string `toml:"address"` //默认 /run/containerd/containerd.sock
 	UID            int    `toml:"uid"`
 	GID            int    `toml:"gid"`
-	MaxRecvMsgSize int    `toml:"max_recv_message_size"`
-	MaxSendMsgSize int    `toml:"max_send_message_size"`
+	MaxRecvMsgSize int    `toml:"max_recv_message_size"` //默认 16MB
+	MaxSendMsgSize int    `toml:"max_send_message_size"` //默认 16MB
 }
 
 // Debug provides debug configuration

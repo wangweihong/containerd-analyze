@@ -28,6 +28,7 @@ import (
 )
 
 // Self retrieves a list of mounts for the current running process.
+// 查看当前进程所在挂载命名空间的挂载点
 func Self() ([]Info, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {

@@ -34,8 +34,9 @@ func setupSignals() (chan os.Signal, error) {
 	signal.Notify(signals, unix.SIGTERM, unix.SIGINT, unix.SIGCHLD, unix.SIGPIPE)
 	// make sure runc is setup to use the monitor
 	// for waiting on processes
-	runc.Monitor = shim.Default
+	runc.Monitor = shim.Default //替换runc默认的进程的监控器
 	// set the shim as the subreaper for all orphaned processes created by the container
+	//  prctl: If arg2 is nonzero, set the "child subreaper" attribute of the calling process; if arg2 is zero, unset the attribute.
 	if err := system.SetSubreaper(1); err != nil {
 		return nil, err
 	}

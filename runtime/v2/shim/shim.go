@@ -184,6 +184,7 @@ func run(id string, initFunc Init) error {
 			return err
 		}
 		client := NewShimClient(ctx, service, signals)
+		// 启动一个shim server ? docker shim server?
 		return client.Serve()
 	}
 }

@@ -65,15 +65,15 @@ const (
 
 func init() {
 	plugin.Register(&plugin.Registration{
-		Type:   plugin.RuntimePlugin,
+		Type:   plugin.RuntimePlugin, //插件类型
 		ID:     "linux",
-		InitFn: New,
+		InitFn: New, // 插件初始
 		Requires: []plugin.Type{
-			plugin.MetadataPlugin,
+			plugin.MetadataPlugin, //io.containerd.metadata.v1
 		},
 		Config: &Config{
-			Shim:    defaultShim,
-			Runtime: defaultRuntime,
+			Shim:    defaultShim,    //container-shim
+			Runtime: defaultRuntime, //runc
 		},
 	})
 }
@@ -81,6 +81,7 @@ func init() {
 var _ = (runtime.PlatformRuntime)(&Runtime{})
 
 // Config options for the runtime
+// 运行插件自定义的配置
 type Config struct {
 	// Shim is a path or name of binary implementing the Shim GRPC API
 	Shim string `toml:"shim"`
@@ -95,15 +96,20 @@ type Config struct {
 }
 
 // New returns a configured runtime
+// plugin.InitContext是在containerd初始化时, 初始化的上下文，包括插件的根目录/运行目录等。
 func New(ic *plugin.InitContext) (interface{}, error) {
 	ic.Meta.Platforms = []ocispec.Platform{platforms.DefaultSpec()}
 
+	// /var/lib/containerd/io.containerd.runtime.v1.linux
 	if err := os.MkdirAll(ic.Root, 0711); err != nil {
 		return nil, err
 	}
+
+	// /run/containerd/io.containerd.runtime.v1.linux
 	if err := os.MkdirAll(ic.State, 0711); err != nil {
 		return nil, err
 	}
+	//获取io.containerd.metadata.v1类型插件
 	m, err := ic.Get(plugin.MetadataPlugin)
 	if err != nil {
 		return nil, err
@@ -112,17 +118,18 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 	r := &Runtime{
 		root:    ic.Root,
 		state:   ic.State,
-		tasks:   runtime.NewTaskList(),
+		tasks:   runtime.NewTaskList(), //现在这个表是空的，加载任务后在填充
 		db:      m.(*metadata.DB),
-		address: ic.Address,
+		address: ic.Address, // /run/containerd/container.sock
 		events:  ic.Events,
-		config:  cfg,
+		config:  cfg, //插件的配置
 	}
 	tasks, err := r.restoreTasks(ic.Context)
 	if err != nil {
 		return nil, err
 	}
 	for _, t := range tasks {
+		//填充任务到任务列表中
 		if err := r.tasks.AddWithNamespace(t.namespace, t); err != nil {
 			return nil, err
 		}
@@ -132,12 +139,12 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 
 // Runtime for a linux based system
 type Runtime struct {
-	root    string
-	state   string
-	address string
+	root    string // 插件中定义的root .一般而言记录/var/lib/containerd/io.containerd.runtime.v1.linux/
+	state   string // 插件中定义的state. /run/containerd/io.containerd.runtime.v1.linux/
+	address string // containerd的socket
 
-	tasks  *runtime.TaskList
-	db     *metadata.DB
+	tasks  *runtime.TaskList //任务列表，在New()加载插件state目录下各命名空间的任务后填充。
+	db     *metadata.DB      // io.containerd.metadata.v1插件
 	events *exchange.Exchange
 
 	config *Config
@@ -150,6 +157,7 @@ func (r *Runtime) ID() string {
 
 // Create a new task
 func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts) (_ runtime.Task, err error) {
+	//从context中提取命名空间
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
@@ -210,6 +218,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		shimopt = ShimRemote(r.config, r.address, cgroup, exitHandler)
 	}
 
+	// container-shim客户端
 	s, err := bundle.NewShimClient(ctx, namespace, shimopt, ropts)
 	if err != nil {
 		return nil, err
@@ -244,6 +253,8 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 			Options: m.Options,
 		})
 	}
+
+	//调用contaienr-shim创建容器？
 	cr, err := s.Create(ctx, sopts)
 	if err != nil {
 		return nil, errdefs.FromGRPC(err)
@@ -278,16 +289,19 @@ func (r *Runtime) Tasks(ctx context.Context, all bool) ([]runtime.Task, error) {
 }
 
 func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
+
+	// 读取 插件/run/containerd/io.containerd.runtime.v1.linux/目录
 	dir, err := ioutil.ReadDir(r.state)
 	if err != nil {
 		return nil, err
 	}
 	var o []*Task
+	//state目录的子目录为命名空间
 	for _, namespace := range dir {
 		if !namespace.IsDir() {
 			continue
 		}
-		name := namespace.Name()
+		name := namespace.Name() //命名空间名, moby
 		log.G(ctx).WithField("namespace", name).Debug("loading tasks in namespace")
 		tasks, err := r.loadTasks(ctx, name)
 		if err != nil {
@@ -313,24 +327,30 @@ func (r *Runtime) Delete(ctx context.Context, id string) {
 	r.tasks.Delete(ctx, id)
 }
 
+// 加载指定命名空间的任务
 func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
+	// /run/containerd/io.containerd.runtime.v1.linux/moby
 	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
 	if err != nil {
 		return nil, err
 	}
 	var o []*Task
+	//加载该目录下的容器
 	for _, path := range dir {
 		if !path.IsDir() {
 			continue
 		}
 		id := path.Name()
 		bundle := loadBundle(
-			id,
-			filepath.Join(r.state, ns, id),
-			filepath.Join(r.root, ns, id),
+			id, // 任务ID
+			filepath.Join(r.state, ns, id), // docker容器 /run/containerd/io.containerd.runtime.v1.linux/moby/<容器ID>
+			filepath.Join(r.root, ns, id),  // docker容器  /run/containerd/io.containerd.runtime.v1.linux/moby/<容器ID>
 		)
-		ctx = namespaces.WithNamespace(ctx, ns)
-		pid, _ := runc.ReadPidFile(filepath.Join(bundle.path, proc.InitPidFile))
+		ctx = namespaces.WithNamespace(ctx, ns)                                  // 将命名空间信息存在context中
+		pid, _ := runc.ReadPidFile(filepath.Join(bundle.path, proc.InitPidFile)) // 读取init.pid文件获取容器运行pid
+
+		// 建立containerd-shim客户端
+		// 该客户端关闭时会 做清理，清理什么？
 		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(r.config, func() {
 			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid)
 			if err != nil {
@@ -351,6 +371,7 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 			continue
 		}
 
+		//构建新任务对象
 		t, err := newTask(id, ns, pid, s, r.events, r.tasks, bundle)
 		if err != nil {
 			log.G(ctx).WithError(err).Error("loading task type")
@@ -362,7 +383,7 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 }
 
 func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, id string, pid int) error {
-	ctx = namespaces.WithNamespace(ctx, ns)
+	ctx = namespaces.WithNamespace(ctx, ns) //保存namespace到context中
 	if err := r.terminate(ctx, bundle, ns, id); err != nil {
 		if r.config.ShimDebug {
 			return errors.Wrap(err, "failed to terminate task, leaving bundle for debugging")
@@ -372,6 +393,7 @@ func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, 
 
 	// Notify Client
 	exitedAt := time.Now().UTC()
+	//推送容器退出事件给containerd?
 	r.events.Publish(ctx, runtime.TaskExitEventTopic, &eventstypes.TaskExit{
 		ContainerID: id,
 		ID:          id,
@@ -380,6 +402,7 @@ func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, 
 		ExitedAt:    exitedAt,
 	})
 
+	//将任务移除出队列
 	r.tasks.Delete(ctx, id)
 	if err := bundle.Delete(); err != nil {
 		log.G(ctx).WithError(err).Error("delete bundle")

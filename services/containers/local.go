@@ -38,10 +38,10 @@ import (
 
 func init() {
 	plugin.Register(&plugin.Registration{
-		Type: plugin.ServicePlugin,
-		ID:   services.ContainersService,
+		Type: plugin.ServicePlugin,       // io.containerd.service.v1
+		ID:   services.ContainersService, //containers-services
 		Requires: []plugin.Type{
-			plugin.MetadataPlugin,
+			plugin.MetadataPlugin, // io.containerd.meta.v1
 		},
 		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
 			m, err := ic.Get(plugin.MetadataPlugin)
@@ -57,8 +57,8 @@ func init() {
 }
 
 type local struct {
-	db        *metadata.DB
-	publisher events.Publisher
+	db        *metadata.DB     //? 封装了bbolt数据库
+	publisher events.Publisher // 事件推送到哪里？
 }
 
 var _ api.ContainersClient = &local{}

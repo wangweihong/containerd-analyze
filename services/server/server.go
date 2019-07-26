@@ -67,9 +67,15 @@ func New(ctx context.Context, config *srvconfig.Config) (*Server, error) {
 	if err := os.MkdirAll(config.State, 0711); err != nil {
 		return nil, err
 	}
+	//设置进程的OOM_score以及加入cgroup
 	if err := apply(ctx, config); err != nil {
 		return nil, err
 	}
+
+	//加载所有的插件
+	//注意：1.部分插件通过配置引入
+	//2. 部分插件在LoadPlugins中显示引入
+	//3. 部分服务在containerd启动时通过init()以插件的形式进行注册。
 	plugins, err := LoadPlugins(ctx, config)
 	if err != nil {
 		return nil, err
@@ -85,6 +91,8 @@ func New(ctx context.Context, config *srvconfig.Config) (*Server, error) {
 	if config.GRPC.MaxSendMsgSize > 0 {
 		serverOpts = append(serverOpts, grpc.MaxSendMsgSize(config.GRPC.MaxSendMsgSize))
 	}
+
+	//创建一个grpc服务器
 	rpc := grpc.NewServer(serverOpts...)
 	var (
 		services []plugin.Service
@@ -95,34 +103,42 @@ func New(ctx context.Context, config *srvconfig.Config) (*Server, error) {
 		}
 		initialized = plugin.NewPluginSet()
 	)
+
+	//遍历所有插件
 	for _, p := range plugins {
-		id := p.URI()
+		id := p.URI() // v1/runtime插件 io.containerd.runtime.v1.linux
+		// contained启动时打印的日子 msg="loading plugin "io.containerd.runtime.v1.linux"..." type=io.containerd.runtime.v1
 		log.G(ctx).WithField("type", p.Type).Infof("loading plugin %q...", id)
 
+		//插件初始化用的上下文,
 		initContext := plugin.NewContext(
 			ctx,
-			p,
-			initialized,
-			config.Root,
-			config.State,
+			p,            // 插件注册程序
+			initialized,  // 已初始化插件表。这个是一个指针，所有组件初始化成功都会添加到该表中。
+			config.Root,  // 默认 /var/lib/containerd
+			config.State, // 默认 /run/containerd
 		)
 		initContext.Events = s.events
-		initContext.Address = config.GRPC.Address
+		initContext.Address = config.GRPC.Address //默认时 /run/containerd/containerd.sock
 
 		// load the plugin specific configuration if it is provided
 		if p.Config != nil {
+			// 如果containerd的配置中提供了特定插件的配置选项， 则
+			// 覆盖插件默认的配置选项。
 			pluginConfig, err := config.Decode(p.ID, p.Config)
 			if err != nil {
 				return nil, err
 			}
 			initContext.Config = pluginConfig
 		}
+
+		// 调用插件自定义的初始化函数
 		result := p.Init(initContext)
 		if err := initialized.Add(result); err != nil {
 			return nil, errors.Wrapf(err, "could not add plugin result to plugin set")
 		}
 
-		instance, err := result.Instance()
+		instance, err := result.Instance() //插件执行初始化函数后生成的插件实例
 		if err != nil {
 			if plugin.IsSkipPlugin(err) {
 				log.G(ctx).WithField("type", p.Type).Infof("skip loading plugin %q...", id)
@@ -132,12 +148,14 @@ func New(ctx context.Context, config *srvconfig.Config) (*Server, error) {
 			continue
 		}
 		// check for grpc services that should be registered with the server
+		// 如果插件实例实现了注册函数，待会也会将注册到grpc服务。
 		if service, ok := instance.(plugin.Service); ok {
 			services = append(services, service)
 		}
 		s.plugins = append(s.plugins, result)
 	}
 	// register services after all plugins have been initialized
+	// 每个服务都将自己的api注册到grpc server中。
 	for _, service := range services {
 		if err := service.Register(rpc); err != nil {
 			return nil, err
@@ -156,14 +174,15 @@ type Server struct {
 
 // ServeGRPC provides the containerd grpc APIs on the provided listener
 func (s *Server) ServeGRPC(l net.Listener) error {
+	// grpc柱状图
 	if s.config.Metrics.GRPCHistogram {
 		// enable grpc time histograms to measure rpc latencies
-		grpc_prometheus.EnableHandlingTimeHistogram()
+		grpc_prometheus.EnableHandlingTimeHistogram() // 启动promethus 对grpc的采集
 	}
 	// before we start serving the grpc API register the grpc_prometheus metrics
 	// handler.  This needs to be the last service registered so that it can collect
 	// metrics for every other service
-	grpc_prometheus.Register(s.rpc)
+	grpc_prometheus.Register(s.rpc) //？p
 	return trapClosedConnErr(s.rpc.Serve(l))
 }
 
@@ -212,6 +231,7 @@ func (s *Server) Stop() {
 
 // LoadPlugins loads all plugins into containerd and generates an ordered graph
 // of all plugins.
+// 加载所有的插件，移除配置中明确禁止的插件，返回插件的注册信息
 func LoadPlugins(ctx context.Context, config *srvconfig.Config) ([]*plugin.Registration, error) {
 	// load all plugins into containerd
 	if err := plugin.Load(filepath.Join(config.Root, "plugins")); err != nil {

@@ -55,8 +55,9 @@ func NamespaceFromEnv(ctx context.Context) context.Context {
 // Namespace returns the namespace from the context.
 //
 // The namespace is not guaranteed to be valid.
+// 从context提取命名空间信息
 func Namespace(ctx context.Context) (string, bool) {
-	namespace, ok := ctx.Value(namespaceKey{}).(string)
+	namespace, ok := ctx.Value(namespaceKey{}).(string) //这是context.Context的标准用法
 	if !ok {
 		return fromGRPCHeader(ctx)
 	}

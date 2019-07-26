@@ -34,9 +34,9 @@ import (
 // loadBundle loads an existing bundle from disk
 func loadBundle(id, path, workdir string) *bundle {
 	return &bundle{
-		id:      id,
-		path:    path,
-		workDir: workdir,
+		id:      id,      // 容器id
+		path:    path,    // docker容器 /run/containerd/io.containerd.runtime.v1.linux/moby/<容器ID>
+		workDir: workdir, //docker容器  /run/containerd/io.containerd.runtime.v1.linux/moby/<容器ID>
 	}
 }
 

@@ -23,10 +23,13 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+//这里初始化后时做什么的？
+//见 runtime.go中CreateOptions中TaskOptions和Runtime.Option的类型定义都包含typeurl字段
 func init() {
 	const prefix = "types.containerd.io"
 	// register TypeUrls for commonly marshaled external types
 	major := strconv.Itoa(specs.VersionMajor)
+	//  types.contaienrd.io/opencontainers/runtime-spec/1/Spec
 	typeurl.Register(&specs.Spec{}, prefix, "opencontainers/runtime-spec", major, "Spec")
 	typeurl.Register(&specs.Process{}, prefix, "opencontainers/runtime-spec", major, "Process")
 	typeurl.Register(&specs.LinuxResources{}, prefix, "opencontainers/runtime-spec", major, "LinuxResources")

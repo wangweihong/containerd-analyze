@@ -39,19 +39,22 @@ func NewTaskList() *TaskList {
 }
 
 // TaskList holds and provides locking around tasks
+// 任务列表， 保存各命名空间的任务
 type TaskList struct {
 	mu    sync.Mutex
-	tasks map[string]map[string]Task
+	tasks map[string]map[string]Task //第一个map key是namespace, 第二个map key为task id
 }
 
 // Get a task
 func (l *TaskList) Get(ctx context.Context, id string) (Task, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	//从context中提取命名空间信息
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
 	}
+	//找到指定命名空间中的任务
 	tasks, ok := l.tasks[namespace]
 	if !ok {
 		return nil, ErrTaskNotExists
@@ -64,6 +67,7 @@ func (l *TaskList) Get(ctx context.Context, id string) (Task, error) {
 }
 
 // GetAll tasks under a namespace
+// 要么拿所有的任务，要么拿指定命名空间的任务
 func (l *TaskList) GetAll(ctx context.Context, noNS bool) ([]Task, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -91,6 +95,7 @@ func (l *TaskList) GetAll(ctx context.Context, noNS bool) ([]Task, error) {
 }
 
 // Add a task
+// 添加指定任务到TaskList中
 func (l *TaskList) Add(ctx context.Context, t Task) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
@@ -116,6 +121,7 @@ func (l *TaskList) AddWithNamespace(namespace string, t Task) error {
 }
 
 // Delete a task
+// 从tasklist中移除指定的任务
 func (l *TaskList) Delete(ctx context.Context, id string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
